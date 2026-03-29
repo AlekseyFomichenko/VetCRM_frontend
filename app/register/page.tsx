@@ -15,12 +15,25 @@ import { RHFNumberSelect } from "@/components/forms/RHFNumberSelect";
 import { FormApiError } from "@/components/forms/FormApiError";
 
 const registerSchema = z.object({
+  lastName: z.string().trim().min(1),
+  firstName: z.string().trim().min(1),
+  patronymic: z.string().trim().min(1),
   email: z.string().email(),
   password: z.string().min(1),
   role: userRoleNumberSchema,
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
+
+function buildFullName(
+  lastName: string,
+  firstName: string,
+  patronymic: string,
+): string {
+  return [lastName, firstName, patronymic]
+    .map((s) => s.trim())
+    .join(" ");
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,6 +43,9 @@ export default function RegisterPage() {
   const { control, handleSubmit } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      lastName: "",
+      firstName: "",
+      patronymic: "",
       email: "",
       password: "",
       role: 1,
@@ -37,16 +53,23 @@ export default function RegisterPage() {
     mode: "onSubmit",
   });
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5187";
-
   const onSubmit = async (values: RegisterFormValues) => {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${apiBaseUrl}/api/auth/register`, {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password,
+          role: values.role,
+          fullName: buildFullName(
+            values.lastName,
+            values.firstName,
+            values.patronymic,
+          ),
+        }),
         cache: "no-store",
       });
 
@@ -95,6 +118,28 @@ export default function RegisterPage() {
         {error ? <FormApiError error={error} /> : null}
 
         <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
+          <RHFTextInput
+            control={control}
+            name="lastName"
+            label="Фамилия"
+            placeholder="Иванов"
+            inputProps={{ autoComplete: "family-name" }}
+          />
+          <RHFTextInput
+            control={control}
+            name="firstName"
+            label="Имя"
+            placeholder="Иван"
+            inputProps={{ autoComplete: "given-name" }}
+          />
+          <RHFTextInput
+            control={control}
+            name="patronymic"
+            label="Отчество"
+            placeholder="Иванович"
+            inputProps={{ autoComplete: "additional-name" }}
+          />
+
           <RHFNumberSelect
             control={control}
             name="role"

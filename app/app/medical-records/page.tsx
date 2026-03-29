@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { apiClient } from "@/lib/api/client/apiClient";
 import {
   MedicalRecordResponseSchema,
+  PetResponseSchema,
   dateOnlySchema,
   guidSchema,
 } from "@/lib/api/schemas";
@@ -64,7 +65,10 @@ type EditMedicalRecordValues = z.infer<typeof editMedicalRecordSchema>;
 type AddVaccinationValues = z.infer<typeof addVaccinationSchema>;
 
 export default function MedicalRecordsPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const role = typeof session?.role === "string" ? session.role : null;
+  const canCreateMedicalRecord = role === "Veterinarian";
+  const canAddVaccination = role === "Admin" || role === "Veterinarian";
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
@@ -74,6 +78,8 @@ export default function MedicalRecordsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editRecordId, setEditRecordId] = useState<string | null>(null);
   const [editError, setEditError] = useState<NormalizedApiError | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createError, setCreateError] = useState<NormalizedApiError | null>(null);
 
   const [vaccOpen, setVaccOpen] = useState(false);
   const [vaccRecordId, setVaccRecordId] = useState<string | null>(null);
@@ -86,6 +92,14 @@ export default function MedicalRecordsPage() {
       const res = await apiClient.get(`/api/pets/${petIdValid}/medical-records`);
       const parsed = MedicalRecordResponseSchema.array().parse(res.data);
       return parsed;
+    },
+  });
+  const petQuery = useQuery({
+    queryKey: ["pet", petIdValid],
+    enabled: status === "authenticated" && !!petIdValid,
+    queryFn: async () => {
+      const res = await apiClient.get(`/api/pets/${petIdValid}`);
+      return PetResponseSchema.parse(res.data);
     },
   });
 
@@ -114,6 +128,16 @@ export default function MedicalRecordsPage() {
       manufacturer: "",
     },
   });
+  const createForm = useForm<EditMedicalRecordValues>({
+    resolver: zodResolver(editMedicalRecordSchema),
+    defaultValues: {
+      complaint: "",
+      diagnosis: "",
+      treatmentPlan: "",
+      prescription: "",
+      attachments: null,
+    },
+  });
 
   const submitEdit = async (values: EditMedicalRecordValues) => {
     if (!editRecordId) return;
@@ -135,7 +159,7 @@ export default function MedicalRecordsPage() {
   };
 
   const submitAddVaccination = async (values: AddVaccinationValues) => {
-    if (!vaccRecordId) return;
+    if (!canAddVaccination || !vaccRecordId) return;
     setVaccError(null);
     try {
       await apiClient.post(
@@ -158,6 +182,30 @@ export default function MedicalRecordsPage() {
       if (isNormalizedApiError(e)) setVaccError(e);
     }
   };
+  const submitCreate = async (values: EditMedicalRecordValues) => {
+    if (!petIdValid) return;
+    setCreateError(null);
+    try {
+      await apiClient.post(`/api/pets/${petIdValid}/medical-records`, {
+        complaint: values.complaint,
+        diagnosis: values.diagnosis,
+        treatmentPlan: values.treatmentPlan,
+        prescription: values.prescription,
+        attachments: values.attachments,
+      });
+      setCreateOpen(false);
+      createForm.reset({
+        complaint: "",
+        diagnosis: "",
+        treatmentPlan: "",
+        prescription: "",
+        attachments: null,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["medical-records"] });
+    } catch (e: unknown) {
+      if (isNormalizedApiError(e)) setCreateError(e);
+    }
+  };
 
   const openEdit = (r: z.infer<typeof MedicalRecordResponseSchema>) => {
     setEditRecordId(r.id);
@@ -173,6 +221,7 @@ export default function MedicalRecordsPage() {
   };
 
   const openVacc = (recordId: string) => {
+    if (!canAddVaccination) return;
     setVaccRecordId(recordId);
     setVaccError(null);
     vaccForm.reset({
@@ -218,11 +267,35 @@ export default function MedicalRecordsPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-        Медицинские записи
+      <div className="flex items-end justify-between gap-3">
+        <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+          Медицинские записи
+        </div>
+        {canCreateMedicalRecord ? (
+          <button
+            type="button"
+            onClick={() => {
+              createForm.reset({
+                complaint: "",
+                diagnosis: "",
+                treatmentPlan: "",
+                prescription: "",
+                attachments: null,
+              });
+              setCreateError(null);
+              setCreateOpen(true);
+            }}
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+          >
+            Создать медкарту
+          </button>
+        ) : null}
       </div>
       <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-200">
         petId: {petIdValid}
+      </div>
+      <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-200">
+        Питомец: {petQuery.data ? `${petQuery.data.name} (${petQuery.data.species})` : "—"}
       </div>
 
       {isLoading ? (
@@ -278,6 +351,10 @@ export default function MedicalRecordsPage() {
                             Дата: {v.vaccinationDate} • Следующая:{" "}
                             {v.nextDueDate ?? "—"}
                           </div>
+                          <div className="mt-1 text-xs opacity-80">
+                            Партия: {v.batch ?? "—"} • Производитель:{" "}
+                            {v.manufacturer ?? "—"}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -292,19 +369,79 @@ export default function MedicalRecordsPage() {
                   >
                     Редактировать
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => openVacc(r.id)}
-                    className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
-                  >
-                    Добавить вакцинацию
-                  </button>
+                  {canAddVaccination ? (
+                    <button
+                      type="button"
+                      onClick={() => openVacc(r.id)}
+                      className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+                    >
+                      Добавить вакцинацию
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Modal
+        open={createOpen}
+        title="Создать медкарту"
+        onClose={() => {
+          setCreateOpen(false);
+          setCreateError(null);
+        }}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCreateOpen(false);
+                setCreateError(null);
+              }}
+              className="rounded-md border border-zinc-200 px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-900/40"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              form="create-medical-record"
+              className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+            >
+              Создать
+            </button>
+          </div>
+        }
+      >
+        <form
+          id="create-medical-record"
+          onSubmit={createForm.handleSubmit(async (values) => submitCreate(values))}
+          className="flex flex-col gap-4"
+        >
+          {createError ? <FormApiError error={createError} /> : null}
+          <RHFTextArea control={createForm.control} name="complaint" label="Жалобы" rows={3} />
+          <RHFTextArea control={createForm.control} name="diagnosis" label="Диагноз" rows={3} />
+          <RHFTextArea
+            control={createForm.control}
+            name="treatmentPlan"
+            label="План лечения"
+            rows={3}
+          />
+          <RHFTextArea
+            control={createForm.control}
+            name="prescription"
+            label="Назначения"
+            rows={3}
+          />
+          <RHFTextInput
+            control={createForm.control}
+            name="attachments"
+            label="attachments (опционально)"
+            placeholder="Строка/URL"
+          />
+        </form>
+      </Modal>
 
       <Modal
         open={editOpen}

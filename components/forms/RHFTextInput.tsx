@@ -40,6 +40,9 @@ export function RHFTextInput<TFieldValues extends FieldValues>({
             </label>
             <input
               {...inputProps}
+              ref={field.ref}
+              name={field.name}
+              onBlur={field.onBlur}
               value={(field.value ?? "") as string}
               placeholder={placeholder}
               onChange={(e: ChangeEvent<HTMLInputElement>) => field.onChange(e.target.value)}

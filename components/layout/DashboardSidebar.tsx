@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-
-import { ThemeSwitch } from "@/components/theme/ThemeSwitch";
+import { signOut, useSession } from "next-auth/react";
 
 export function DashboardSidebar() {
   const { data: session } = useSession();
   const role = typeof session?.role === "string" ? session.role : null;
   const canAdmin = role === "Admin";
+  const onLogout = async () => {
+    await signOut({ callbackUrl: "/" });
+  };
 
   return (
     <aside className="flex w-72 shrink-0 flex-col gap-6 border-r border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -69,10 +70,13 @@ export function DashboardSidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-        <ThemeSwitch />
-        <div className="text-xs text-zinc-500 dark:text-zinc-400">
-          Переключатель темы работает для всего dashboard.
-        </div>
+        <button
+          type="button"
+          onClick={onLogout}
+          className="rounded-md border border-zinc-200 px-2 py-1 text-sm text-zinc-800 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          Выйти
+        </button>
       </div>
     </aside>
   );

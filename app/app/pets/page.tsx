@@ -139,6 +139,9 @@ export default function PetsPage() {
   });
 
   const petClients = clientsQuery.data?.items ?? [];
+  const clientNameById = new Map<string, string>(
+    petClients.map((client) => [client.id, client.fullName]),
+  );
 
   const {
     control,
@@ -280,6 +283,10 @@ export default function PetsPage() {
   const pets = petsQuery.data?.items ?? [];
 
   const isClientLoading = clientsQuery.isLoading;
+  const getClientDisplayName = (clientId: string | null) => {
+    if (clientId === null) return "—";
+    return clientNameById.get(clientId) ?? "Клиент не найден";
+  };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -387,7 +394,7 @@ export default function PetsPage() {
                       Дата рождения: {p.birthDate ?? "—"}
                     </div>
                     <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-                      Клиент: {p.clientId ?? "—"}
+                      Клиент: {getClientDisplayName(p.clientId)}
                     </div>
                   </div>
                   <StatusPill kind="pet" value={p.status} />
@@ -507,11 +514,15 @@ export default function PetsPage() {
             inputProps={{ type: "date" }}
           />
 
-          <RHFTextInput
+          <RHFSelect
             control={control}
             name="clientId"
-            label="clientId (опционально)"
-            placeholder="UUID клиента"
+            label="Клиент (опционально)"
+            options={[
+              { value: "", label: "Без клиента" },
+              ...petClients.map((c) => ({ value: c.id, label: c.fullName })),
+            ]}
+            selectProps={{ disabled: isClientLoading }}
           />
         </form>
       </Modal>

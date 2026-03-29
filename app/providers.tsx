@@ -12,9 +12,10 @@ export function AppProviders({ children }: Readonly<{ children: ReactNode }>) {
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
+          attribute="data-theme"
+          defaultTheme="light"
+          enableSystem={false}
+          storageKey="vetcrm-theme"
           disableTransitionOnChange
         >
           {children}
