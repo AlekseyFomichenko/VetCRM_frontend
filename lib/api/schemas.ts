@@ -90,6 +90,7 @@ export const AuthRegisterRequestSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   role: userRoleNumberSchema,
+  fullName: z.string().trim().min(1),
 });
 
 export const AuthLoginRequestSchema = z.object({
@@ -269,6 +270,12 @@ export const GetUsersResponseSchema = z.object({
   totalCount: z.number().int().nonnegative(),
   page: z.number().int().positive(),
   pageSize: z.number().int().positive(),
+});
+
+export const VeterinarianOptionSchema = z.object({
+  id: guidSchema,
+  email: z.string().email(),
+  fullName: nullableStringSchema,
 });
 
 export const ProcessVaccinationRemindersResponseSchema = z.object({

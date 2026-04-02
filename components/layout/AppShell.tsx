@@ -7,8 +7,11 @@ import { useSession } from "next-auth/react";
 
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar";
 
+const sidebarCollapsedStorageKey = "vetcrm_sidebar_collapsed";
+
 export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   const [open, setOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -29,10 +32,38 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
     if (role !== "Admin") router.replace("/app/appointments");
   }, [pathname, role, router, status]);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(sidebarCollapsedStorageKey);
+      if (raw === "1") setSidebarCollapsed(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(
+          sidebarCollapsedStorageKey,
+          next ? "1" : "0",
+        );
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="flex min-h-screen bg-zinc-50 dark:bg-black">
-      <div className="hidden lg:block">
-        <DashboardSidebar />
+      <div className="hidden h-screen shrink-0 lg:flex">
+        <DashboardSidebar
+          variant="desktop"
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebarCollapsed}
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -59,8 +90,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             className="absolute inset-0 bg-black/40"
             onClick={() => setOpen(false)}
           />
-          <div className="relative h-full w-72 bg-white dark:bg-zinc-950">
-            <div className="flex items-center justify-between border-b border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="relative flex h-full w-64 max-w-[85vw] flex-col bg-white dark:bg-zinc-950">
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-3 py-3 dark:border-zinc-800">
               <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Меню
               </div>
@@ -72,7 +103,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 Закрыть
               </button>
             </div>
-            <DashboardSidebar />
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <DashboardSidebar variant="drawer" />
+            </div>
           </div>
         </div>
       ) : null}

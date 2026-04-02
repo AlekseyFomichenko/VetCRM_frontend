@@ -3,10 +3,9 @@
 import type { ChangeEvent } from "react";
 import { useTheme } from "next-themes";
 
-type ThemeChoice = "system" | "light" | "dark";
+type ThemeChoice = "light" | "dark";
 
 const choices: Array<{ value: ThemeChoice; label: string }> = [
-  { value: "system", label: "Системная" },
   { value: "light", label: "Светлая" },
   { value: "dark", label: "Тёмная" },
 ];
@@ -14,8 +13,7 @@ const choices: Array<{ value: ThemeChoice; label: string }> = [
 export function ThemeSwitch() {
   const { theme, setTheme } = useTheme();
 
-  const currentTheme: ThemeChoice =
-    theme === "light" || theme === "dark" || theme === "system" ? theme : "system";
+  const currentTheme: ThemeChoice = theme === "dark" ? "dark" : "light";
 
   const onChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const next = e.target.value as ThemeChoice;

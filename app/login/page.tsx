@@ -77,7 +77,7 @@ export default function LoginPage() {
             label="Email"
             placeholder="name@example.com"
             inputProps={{
-              autoComplete: "email",
+              autoComplete: "username",
               inputMode: "email",
               type: "email",
             }}
