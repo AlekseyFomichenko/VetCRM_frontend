@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -64,7 +64,7 @@ const addVaccinationSchema = z.object({
 type EditMedicalRecordValues = z.infer<typeof editMedicalRecordSchema>;
 type AddVaccinationValues = z.infer<typeof addVaccinationSchema>;
 
-export default function MedicalRecordsPage() {
+function MedicalRecordsPageContent() {
   const { data: session, status } = useSession();
   const role = typeof session?.role === "string" ? session.role : null;
   const canCreateMedicalRecord = role === "Veterinarian";
@@ -585,6 +585,20 @@ export default function MedicalRecordsPage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+export default function MedicalRecordsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-5xl">
+          <LoadingListSkeleton rows={6} />
+        </div>
+      }
+    >
+      <MedicalRecordsPageContent />
+    </Suspense>
   );
 }
 
